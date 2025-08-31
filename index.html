@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steganography Web Tool</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for a modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+        }
+        .file-input-label:hover {
+            border-color: #3b82f6;
+        }
+        .transition-all {
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen p-4 sm:p-8 flex flex-col items-center">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-2xl">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl sm:text-5xl font-bold text-white mb-2">
+                Steganography Tool
+            </h1>
+            <p class="text-md sm:text-lg text-gray-400">
+                Securely hide and reveal messages in images.
+            </p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="flex space-x-2 bg-gray-800 p-1 rounded-xl mb-8">
+            <a href="{{ url_for('index', tab='encode') }}" class="flex-1 py-3 text-center font-semibold rounded-lg transition-colors {{ 'bg-blue-600 text-white shadow-lg' if active_tab == 'encode' else 'bg-gray-700 text-gray-300 hover:bg-gray-600' }}">
+                Encode Message
+            </a>
+            <a href="{{ url_for('index', tab='decode') }}" class="flex-1 py-3 text-center font-semibold rounded-lg transition-colors {{ 'bg-blue-600 text-white shadow-lg' if active_tab == 'decode' else 'bg-gray-700 text-gray-300 hover:bg-gray-600' }}">
+                Decode Message
+            </a>
+        </div>
+
+        <!-- Main Content -->
+        <main class="bg-gray-800 p-6 sm:p-8 rounded-xl shadow-2xl flex flex-col items-center">
+            
+            <!-- Encode Section -->
+            <section id="encode-section" class="{{ 'block' if active_tab == 'encode' else 'hidden' }} w-full">
+                <h2 class="text-2xl font-bold mb-6 text-center text-white">Hide a Message in an Image</h2>
+                <form method="POST" enctype="multipart/form-data" action="{{ url_for('index') }}">
+                    <input type="hidden" name="action" value="encode">
+                    
+                    <div class="w-full space-y-6">
+                        <!-- File Input -->
+                        <div>
+                            <label for="encode-image-input" class="block text-sm font-medium text-gray-300 mb-2">1. Choose a cover image (PNG recommended)</label>
+                            <input type="file" id="encode-image-input" name="image" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500" accept="image/png, image/bmp, image/jpeg" required>
+                        </div>
+                        
+                        <!-- Message Input -->
+                        <div>
+                           <label for="secret-message" class="block text-sm font-medium text-gray-300 mb-2">2. Enter your secret message</label>
+                           <textarea id="secret-message" name="message" class="w-full p-4 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors h-32 resize-none" placeholder="Your secret goes here..." required></textarea>
+                        </div>
+
+                        <!-- Character Count -->
+                        <div class="text-sm text-right text-gray-400 -mt-2">
+                            <span id="char-count">0</span> characters
+                            <span id="capacity-display">
+                                {% if image_capacity %}
+                                    / {{ image_capacity }} available
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- Password Input with Toggle -->
+                        <div>
+                           <label for="encode-password" class="block text-sm font-medium text-gray-300 mb-2">3. Set a password to protect it</label>
+                           <div class="relative">
+                                <input type="password" id="encode-password" name="password" 
+                                    class="w-full p-4 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors pr-12"
+                                    placeholder="Enter a strong password" required>
+                                <button type="button" onclick="togglePassword('encode-password', this)" 
+                                    class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white">👁</button>
+                           </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Encode Button -->
+                    <button type="submit" class="mt-8 w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-all duration-300 transform active:scale-95 bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500">
+                        Encode and Generate Image
+                    </button>
+                </form>
+            </section>
+
+            <!-- Decode Section -->
+            <section id="decode-section" class="{{ 'block' if active_tab == 'decode' else 'hidden' }} w-full">
+                <h2 class="text-2xl font-bold mb-6 text-center text-white">Reveal a Message from an Image</h2>
+                <form method="POST" enctype="multipart/form-data" action="{{ url_for('index') }}">
+                    <input type="hidden" name="action" value="decode">
+                    <input type="hidden" name="tab" value="decode">
+                    
+                    <div class="w-full space-y-6">
+                        <!-- File Input -->
+                        <div>
+                            <label for="decode-image-input" class="block text-sm font-medium text-gray-300 mb-2">1. Choose the stego-image</label>
+                            <input type="file" id="decode-image-input" name="image" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500" accept="image/png" required>
+                        </div>
+                        
+                        <!-- Password Input with Toggle -->
+                        <div>
+                            <label for="decode-password" class="block text-sm font-medium text-gray-300 mb-2">2. Enter the password</label>
+                            <div class="relative">
+                                <input type="password" id="decode-password" name="password"
+                                    class="w-full p-4 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors pr-12"
+                                    placeholder="Enter password to unlock" required>
+                                <button type="button" onclick="togglePassword('decode-password', this)" 
+                                    class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white">👁</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Decode Button -->
+                    <button type="submit" class="mt-8 w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-all duration-300 transform active:scale-95 bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500">
+                        Decode Message
+                    </button>
+                </form>
+            </section>
+
+            <!-- Status -->
+            {% if status %}
+            <div class="mt-6 w-full text-center text-sm font-medium p-4 rounded-xl shadow-md transition-all duration-300 {{ 'bg-red-900/50 text-red-300' if '❌' in status else 'bg-green-900/50 text-green-300' }}">
+                {{ status }}
+            </div>
+            {% endif %}
+            {% if warning %}
+            <div class="mt-4 w-full text-center text-sm font-medium p-4 rounded-xl shadow-md transition-all duration-300 bg-yellow-900/50 text-yellow-300">
+                {{ warning }}
+            </div>
+            {% endif %}
+
+            <!-- Encoded Image -->
+            {% if encoded_image %}
+            <div class="mt-8 w-full border-t border-gray-700 pt-6">
+                <h3 class="text-xl font-bold mb-4 text-center text-white">Your Encoded Image is Ready</h3>
+                <img src="data:image/png;base64,{{ encoded_image }}" class="rounded-xl shadow-lg border-2 border-gray-700 max-w-full h-auto mb-4 mx-auto" alt="Encoded Image">
+                <a href="data:image/png;base64,{{ encoded_image }}" download="stego_image.png" class="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-all duration-300 transform active:scale-95 bg-green-600 hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-500">
+                    Download Image
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Decoded Message -->
+            {% if decoded_message %}
+            <div class="mt-8 w-full border-t border-gray-700 pt-6">
+                <h3 class="text-xl font-bold mb-4 text-center text-white">Revealed Hidden Message</h3>
+                <div class="bg-gray-900 p-4 rounded-xl shadow-inner break-words max-h-60 overflow-y-auto">
+                    <p class="text-gray-300 whitespace-pre-wrap">{{ decoded_message }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <!-- JS: Char Counter, Capacity + Password Toggle -->
+    <script>
+        // Char counter
+        const messageInput = document.getElementById('secret-message');
+        const charCountDisplay = document.getElementById('char-count');
+        if (messageInput && charCountDisplay) {
+            charCountDisplay.textContent = messageInput.value.length;
+            messageInput.addEventListener('input', () => {
+                charCountDisplay.textContent = messageInput.value.length;
+            });
+        }
+
+        // Capacity calc
+        const encodeImageInput = document.getElementById('encode-image-input');
+        const capacityDisplay = document.getElementById('capacity-display');
+        if (encodeImageInput && capacityDisplay) {
+            encodeImageInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) {
+                    capacityDisplay.textContent = '';
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('image', file);
+                capacityDisplay.textContent = '/ calculating...';
+                try {
+                    const response = await fetch('/calculate_capacity', { method: 'POST', body: formData });
+                    if (!response.ok) throw new Error('Server error');
+                    const data = await response.json();
+                    if (data.capacity) {
+                        capacityDisplay.textContent = `/ ${data.capacity} available`;
+                    } else {
+                        capacityDisplay.textContent = `/ Error`;
+                    }
+                } catch {
+                    capacityDisplay.textContent = '/ Error calculating capacity';
+                }
+            });
+        }
+
+        // Password toggle
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                button.textContent = "🙈";
+            } else {
+                input.type = "password";
+                button.textContent = "👁";
+            }
+        }
+    </script>
+</body>
+</html>
