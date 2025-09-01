@@ -27,5 +27,5 @@ A Flask-based web application that allows users to securely hide and reveal secr
 
 1. Clone this repository  
    ```bash
-   git clone https://github.com/your-username/steganography-web-tool.git
+   git clone https://github.com/Viswanadh29/steganography-web-tool.git
    cd steganography-web-tool
